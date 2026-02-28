@@ -4,7 +4,7 @@
 # =============================================================================
 # This script ONLY sets up the Python environment for PaddleOCR.
 # For full project setup (data, pretrained models, etc.), use:
-#   ./scripts/setup_full.sh
+#   bash scripts/setup.sh
 # =============================================================================
 
 set -e
@@ -40,8 +40,8 @@ echo "╔═══════════════════════�
 echo "║  ✅ PaddleOCR environment ready!                           ║"
 echo "╚════════════════════════════════════════════════════════════╝"
 echo ""
-echo "To activate:"
-echo "  cd approaches/paddle && source .venv/bin/activate"
+echo "Use uv run (no manual activation needed):"
+echo "  uv run python scripts/..."
 echo ""
-echo "For full project setup (data, pretrained, configs):"
-echo "  cd ../../ && ./scripts/setup_full.sh"
+echo "For full project setup (data, pretrained models, configs):"
+echo "  bash scripts/setup.sh"
