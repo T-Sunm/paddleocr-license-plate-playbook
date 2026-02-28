@@ -1,0 +1,8 @@
+torchvision
+magickwand
+pillow
+opencv-python
+opencv-contrib-python
+scikit-image
+numpy
+Wand
