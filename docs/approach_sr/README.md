@@ -19,15 +19,9 @@ Plate text
 ![SR Architecture](../../assets/sr_architecture.png)
 *Figure: Gestalt architecture featuring PSN (TSRN) and SFM (Source: Text Gestalt paper)*
 
-Two SR algorithms are supported out of the box:
-
-| Algorithm | Model | Loss | When to use |
-|:---|:---|:---|:---|
-| **Gestalt** (default) | TSRN + Transformer recognizer | `StrokeFocusLoss` (stroke-aware) | Recommended — higher accuracy |
-| **Telescope** | TBSRN + Transformer recognizer | Standard pixel loss | When stroke decomposition data is unavailable |
+This repo uses the **Gestalt** algorithm (TSRN + `StrokeFocusLoss`), adapted from [Text Gestalt: Stroke-Aware Scene Text Image Super-Resolution (AAAI 2022)](https://arxiv.org/pdf/2112.08171).
 
 > [!NOTE]
-> The **Gestalt** algorithm is adapted from [Text Gestalt: Stroke-Aware Scene Text Image Super-Resolution (AAAI 2022)](https://arxiv.org/pdf/2112.08171).
 > **If you re-clone `PaddleOCR/`** as a fresh submodule, all source-level patches described below must be re-applied.
 
 ---
@@ -50,7 +44,12 @@ python scripts/data/build_lmdb_sr.py
 # Step 2: Verify dataset integrity
 python scripts/tools/verify_lmdb_sr.py --lmdb_dir data/lmdb_sr/train_lmdb
 
-# Step 3: Download and fix pretrained weights
+# Step 3: Verify english_decomposition.txt exists
+# Gestalt cannot run without this file — it is used by both StrokeFocusLoss (loss computation)
+# and SRLabelEncode (data transform). Training will crash immediately if the file is missing.
+ls data/english_decomposition.txt
+
+# Step 4: Download and fix pretrained weights
 mkdir -p weights/pretrained/sr
 wget -P weights/pretrained/sr/ \
     https://paddleocr.bj.bcebos.com/dygraph_v2.0/sr/sr_tsrn_transformer_strock_train.tar
@@ -61,7 +60,7 @@ python scripts/tools/fix_sr_pretrained.py \
     --output weights/pretrained/sr/sr_tsrn_transformer_strock_train/best_accuracy_fixed.pdparams \
     --algo   gestalt
 
-# Step 4: Train
+# Step 5: Train
 uv run python scripts/train/train_sr.py --algo gestalt
 ```
 
@@ -137,11 +136,7 @@ Train:
 ## Training
 
 ```bash
-# Train Gestalt (Recommended)
 uv run python scripts/train/train_sr.py --algo gestalt --seed 42
-
-# Train Telescope (alternative, no decomposition data required)
-uv run python scripts/train/train_sr.py --algo telescope --seed 42
 ```
 
 `train_sr.py` internally resolves the config path from `CONFIGS_DIR / "sr" / f"sr_{algo}_plate.yml"` and calls PaddleOCR's standard training runner. The seed is passed to PaddlePaddle's global seed for reproducibility.
@@ -280,13 +275,3 @@ Eval:
     num_workers: 4
 ```
 
-**Telescope variant** (`sr_telescope_plate.yml`) differs only in:
-```yaml
-Architecture:
-  algorithm: Telescope
-  Transform:
-    name: TBSRN
-    # No character_dict_path needed — Telescope uses pixel loss only
-Loss:
-  name: TelescopeLoss    # or standard pixel loss
-```
