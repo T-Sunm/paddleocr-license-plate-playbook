@@ -15,7 +15,6 @@ YELLOW='\033[1;33m'
 NC='\033[0m'
 
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-PADDLE_DIR="$PROJECT_ROOT/approaches/paddle"
 
 echo -e "${BLUE}"
 echo "╔════════════════════════════════════════════════════════════╗"
@@ -25,13 +24,15 @@ echo -e "${NC}"
 
 # 1. Environment Setup
 echo -e "${YELLOW}[Step 1/7] Setting up environment...${NC}"
-cd "$PADDLE_DIR"
+cd "$PROJECT_ROOT" # Change to project root for .venv
 if [ ! -d ".venv" ]; then
     echo "  Creating virtual environment and installing dependencies..."
     uv venv --python 3.10
     uv sync
+else
+    echo "  Virtual environment already exists, syncing dependencies..."
+    uv sync
 fi
-source .venv/bin/activate
 echo -e "${GREEN}  ✓ Environment ready${NC}"
 
 # 2. Download Preprocessed Data (Scenario A & B with BBoxes)
@@ -45,39 +46,38 @@ fi
 
 # 3. Pretrained Models
 echo -e "\n${YELLOW}[Step 3/7] Checking pretrained models...${NC}"
-if [ ! -d "$PROJECT_ROOT/pretrain_models/paddleocr_v5_det" ]; then
+if [ ! -d "$PROJECT_ROOT/weights/pretrained/ocr/paddleocr_v5_det" ]; then
     echo "  Downloading PP-OCRv5 pretrained models..."
-    uv run python scripts/download_pretrained.py --mode both
+    uv run python "$PROJECT_ROOT/scripts/tools/download_pretrained.py" --mode both
 else
     echo -e "${GREEN}  ✓ Pretrained models exist${NC}"
 fi
 
 # 4. Crop Images (Bounding Box)
 echo -e "\n${YELLOW}[Step 4/7] Cropping plates from bounding boxes...${NC}"
-uv run python "$PROJECT_ROOT/scripts/crop_plates.py" \
+uv run python "$PROJECT_ROOT/scripts/data/crop_plates.py" \
     --input "$PROJECT_ROOT/data/preprocessed" \
     --output "$PROJECT_ROOT/data/preprocessed_cropped"
 echo -e "${GREEN}  ✓ Cropping complete${NC}"
 
 # 5. Data Augmentation
 echo -e "\n${YELLOW}[Step 5/7] Running data augmentation on cropped images...${NC}"
-# This applies LRLPR effects to simulate low resolution
-uv run python "$PROJECT_ROOT/scripts/augment_data.py" \
+uv run python "$PROJECT_ROOT/scripts/data/augment_data.py" \
     --input "$PROJECT_ROOT/data/preprocessed_cropped"
 echo -e "${GREEN}  ✓ Augmentation complete${NC}"
 
 # 6. Build Base Dataset (Train/Val/Test Split)
 echo -e "\n${YELLOW}[Step 6/7] Building unified datasets...${NC}"
-uv run python "$PROJECT_ROOT/scripts/build_dataset.py" --mode all
+uv run python "$PROJECT_ROOT/scripts/data/build_dataset.py" --mode all
 echo -e "${GREEN}  ✓ Base datasets built (data/processed_det, data/processed_rec)${NC}"
 
 # 7. Prepare Ensemble Splits & Configs
 echo -e "\n${YELLOW}[Step 7/7] Preparing ensemble data and configurations...${NC}"
-uv run python "$PROJECT_ROOT/scripts/prepare_ensemble.py" --mode all
+uv run python "$PROJECT_ROOT/scripts/data/prepare_ensemble.py" --mode all
 
 echo "  Generating training configurations for ensemble..."
-uv run python scripts/generate_configs.py --mode det
-uv run python scripts/generate_configs.py --mode rec
+uv run python "$PROJECT_ROOT/scripts/tools/generate_configs.py" --mode det
+uv run python "$PROJECT_ROOT/scripts/tools/generate_configs.py" --mode rec
 echo -e "${GREEN}  ✓ Ensemble data and configs ready${NC}"
 
 echo -e "\n${BLUE}================================================================${NC}"
@@ -85,7 +85,7 @@ echo -e "${GREEN}  PIPELINE COMPLETE! SYSTEM READY FOR TRAINING.${NC}"
 echo -e "${BLUE}================================================================${NC}"
 echo ""
 echo "Next steps:"
-echo -e "  1. Train Detection Ensemble:   ${YELLOW}./scripts/run.sh train_ensemble.py --mode det${NC}"
-echo -e "  2. Train Recognition Ensemble: ${YELLOW}./scripts/run.sh train_ensemble.py --mode rec${NC}"
+echo -e "  1. Train Detection Ensemble:   ${YELLOW}uv run python scripts/train/train_ensemble.py --mode det${NC}"
+echo -e "  2. Train Recognition Ensemble: ${YELLOW}uv run python scripts/train/train_ensemble.py --mode rec${NC}"
 echo ""
-echo "Check progress in: approaches/paddle/output/ensemble_v5"
+echo "Check progress in: output/ensemble_v5"
