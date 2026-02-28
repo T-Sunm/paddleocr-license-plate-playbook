@@ -1,0 +1,59 @@
+[project]
+name = "plate-recognition-paddle"
+version = "0.1.0"
+description = "Plate recognition using PaddleOCR (SR + OCR pipeline)"
+requires-python = ">=3.10"
+dependencies = [
+    "paddlepaddle-gpu==3.2.1",
+    "paddleocr>=2.7.0",
+    "numpy>=1.24.0",
+    "opencv-python>=4.8.0",
+    "pyyaml>=6.0",
+    "shapely",
+    "scikit-image",
+    "pyclipper",
+    "lmdb",
+    "tqdm",
+    "rapidfuzz",
+    "opencv-contrib-python",
+    "cython",
+    "Pillow",
+    "requests",
+    "albumentations",
+    "albucore",
+    "packaging",
+    "levenshtein>=0.27.3",
+    "setuptools>=82.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "ruff>=0.2.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/plate_ocr"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "W", "UP"]
+ignore = ["E501"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[[tool.uv.index]]
+name = "paddle-cu118"
+url = "https://www.paddlepaddle.org.cn/packages/stable/cu118/"
+explicit = true
+
+[tool.uv.sources]
+paddlepaddle-gpu = { index = "paddle-cu118" }

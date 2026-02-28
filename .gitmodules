@@ -1,0 +1,3 @@
+[submodule "CTM_Remote_Sensing_Change_Detection"]
+	path = CTM_Remote_Sensing_Change_Detection
+	url = https://github.com/Event-AHU/CTM_Remote_Sensing_Change_Detection.git

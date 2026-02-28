@@ -1,0 +1,96 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual environments - EACH APPROACH HAS ITS OWN
+approaches/*/.venv/
+shared/.venv/
+.venv/
+venv/
+ENV/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb_checkpoints
+
+# Data (large files, not tracked)
+data/raw/
+data/processed/
+data/preprocessed/
+data/models/
+data/public_test_list.txt
+
+# Weights & checkpoints (not tracked)
+weights/
+pretrain_models/
+
+# Training outputs
+train/
+logs/
+checkpoints/
+runs/
+*.pth
+*.pt
+*.ckpt
+*.h5
+*.pb
+
+# Approach-specific outputs
+approaches/*/logs/
+approaches/*/checkpoints/
+approaches/*/outputs/
+approaches/*/output/
+*.pdparams
+*.pdopt
+*.pdmodel
+*.pdiparams
+*.pdiparams.info
+
+# External Dependencies
+# approaches/paddle/PaddleOCR/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Tesseract
+*.traineddata
+tesseract_training_data/
+
+# Temporary
+tmp/
+temp/
+*.tmp
+
+# Output artifacts
+output/
+
+# Old structure (keep for backward compat during migration)
+data/preprocessed_cropped
+data/lmdb_sr
