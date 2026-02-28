@@ -1,4 +1,4 @@
-# Plate Recognition — Low Resolution
+# Low-Resolution License Plate Recognition
 
 A license plate recognition system for low-resolution videos, consisting of two sequential processing stages:
 

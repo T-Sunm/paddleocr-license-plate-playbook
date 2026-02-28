@@ -1,4 +1,4 @@
-# Super Resolution (SR) — License Plate Enhancement
+# Super Resolution (SR)
 
 This module trains a Super Resolution model that enhances low-resolution license plate crops **before** they are fed into the OCR recognition pipeline. SR is the first stage in the full inference chain:
 

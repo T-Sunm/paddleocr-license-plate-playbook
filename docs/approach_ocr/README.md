@@ -1,4 +1,4 @@
-# PaddleOCR Approach — License Plate Recognition
+# PaddleOCR Approach - License Plate Recognition
 
 This document covers everything you need to train, tune, and extend the PaddleOCR-based recognition pipeline for license plate recognition on low-resolution video. It supports three training paradigms:
 

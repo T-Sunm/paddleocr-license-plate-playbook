@@ -1,4 +1,4 @@
-# Feature 3 — Multiframe Temporal Fusion Architecture
+# Feature 3 - Multiframe Temporal Fusion Architecture
 
 ### The Problem
 
