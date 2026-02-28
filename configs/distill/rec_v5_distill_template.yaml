@@ -1,0 +1,224 @@
+Global:
+  use_gpu: true
+  epoch_num: 100
+  log_smooth_window: 20
+  print_batch_step: 10
+  save_model_dir: REPLACE_OUTPUT_DIR
+  save_epoch_step: 9999999
+  eval_batch_step: [0, 1000]
+  cal_metric_during_train: true
+  pretrained_model: null  # DistillationModel uses per-model pretrained
+  checkpoints: null
+  save_inference_dir: null
+  use_visualdl: false
+  use_amp: true
+  amp_level: O1
+  scale_loss: 1024.0
+  use_dynamic_loss_scaling: true
+  infer_img: null
+  character_dict_path: REPLACE_DICT_PATH
+  max_text_length: &max_text_length 10
+  infer_mode: false
+  use_space_char: false
+  save_res_path: ./output/rec/predicts_distill.txt
+
+Architecture:
+  model_type: &model_type "rec"
+  name: DistillationModelLRLP
+  algorithm: Distillation
+  Models:
+    Teacher:
+      pretrained: REPLACE_TEACHER_PRETRAINED
+      freeze_params: true
+      return_all_feats: true
+      model_type: *model_type
+      algorithm: SVTR_HGNet
+      Transform:
+        name: TPS
+        num_fiducial: 20
+        loc_lr: 0.1
+        model_name: small
+      Backbone:
+        name: PPHGNetV2_B4
+        text_rec: true # stride=1 if text_rec else 2
+        use_temporal: true
+        frozen_stages: -1 # No frozen stages for teacher output
+      Head:
+        name: MultiHead
+        head_list:
+          - CTCHead:
+              Neck:
+                name: svtr
+                dims: 120
+                depth: 2
+                hidden_dims: 120
+                kernel_size: [1, 3]
+                use_guide: true
+              Head:
+                fc_decay: 0.00001
+          - NRTRHead:
+              nrtr_dim: 384
+              max_text_length: *max_text_length
+    Student:
+      pretrained: REPLACE_STUDENT_PRETRAINED
+      freeze_params: false
+      return_all_feats: true
+      model_type: *model_type
+      algorithm: SVTR_HGNet
+      Transform:
+        name: TPS
+        num_fiducial: 20
+        loc_lr: 0.1
+        model_name: small
+        name_prefix: stu_
+      Backbone:
+        name: PPHGNetV2_B4
+        text_rec: true # stride=1 if text_rec else 2
+        use_temporal: true
+        frozen_stages: 2
+      Head:
+        name: MultiHead
+        head_list:
+          - CTCHead:
+              Neck:
+                name: svtr
+                dims: 120
+                depth: 2
+                hidden_dims: 120
+                kernel_size: [1, 3]
+                use_guide: true
+              Head:
+                fc_decay: 0.00001
+          - NRTRHead:
+              nrtr_dim: 384
+              max_text_length: *max_text_length
+
+Loss:
+  name: CombinedLoss
+  loss_config_list:
+    # Supervised CTC Loss - only Student learns from GT
+    - DistillationCTCLoss:
+        weight: 1.0
+        model_name_list: ["Student"]
+        key: head_out
+        multi_head: true
+    # Supervised NRTR Loss - only Student learns from GT
+    - DistillationNRTRLoss:
+        weight: 1.0
+        model_name_list: ["Student"]
+        key: head_out
+        multi_head: true
+    # DML Loss for CTC head - Student learns from Teacher's soft distribution
+    - DistillationDMLLoss:
+        weight: 1.0
+        act: "softmax"
+        use_log: true
+        model_name_pairs:
+          - ["Student", "Teacher"]
+        key: head_out
+        multi_head: true
+        dis_head: "ctc"
+    # DML Loss for NRTR head - Student learns from Teacher's soft distribution
+    - DistillationNRTRDMLLoss:
+        weight: 0.5
+        act: "softmax"
+        use_log: true
+        model_name_pairs:
+          - ["Student", "Teacher"]
+        key: head_out
+        multi_head: true
+        dis_head: "gtc"
+    # Feature distillation - L2 distance on backbone features
+    - DistillationDistanceLoss:
+        weight: 0.5
+        mode: "l2"
+        model_name_pairs:
+          - ["Student", "Teacher"]
+        key: backbone_out
+
+Optimizer:
+  name: Adam
+  beta1: 0.9
+  beta2: 0.999
+  lr:
+    name: Cosine
+    learning_rate: 0.0005
+    warmup_epoch: 2
+  regularizer:
+    name: L2
+    factor: 0.00001
+
+PostProcess:
+  name: DistillationCTCLabelDecode
+  model_name: ["Student", "Teacher"]
+  key: head_out
+  multi_head: true
+
+Metric:
+  name: DistillationMetric
+  base_metric_name: RecMetric
+  main_indicator: acc
+  key: "Student"
+
+Train:
+  dataset:
+    name: DistillationDataSet
+    ds_width: false
+    data_dir: REPLACE_DATA_DIR
+    label_file_list:
+      - REPLACE_DATA_DIR/train.txt
+    ext_op_transform_idx: 1
+    transforms:
+      - DecodeMultiImagePair:
+          img_mode: BGR
+          channel_first: false
+      - MultiLabelEncode:
+          gtc_encode: NRTRLabelEncode
+      - KeepKeys:
+          keep_keys:
+            - image
+            - label_ctc
+            - label_gtc
+            - length
+            - valid_ratio
+            - image_hr
+  sampler:
+    name: MultiScaleSampler
+    scales: [[320, 32], [320, 48]]
+    first_bs: &bs 32
+    fix_bs: false
+    divided_factor: [8, 16]
+    is_training: true
+  loader:
+    shuffle: true
+    batch_size_per_card: *bs
+    drop_last: true
+    num_workers: 4
+
+Eval:
+  dataset:
+    name: DistillationDataSet
+    data_dir: REPLACE_DATA_DIR
+    label_file_list:
+      - REPLACE_DATA_DIR/val.txt
+    transforms:
+      - DecodeMultiImagePair:
+          img_mode: BGR
+          channel_first: false
+      - MultiLabelEncode:
+          gtc_encode: NRTRLabelEncode
+      - RecResizeImg:
+          image_shape: [3, 48, 320]
+      - KeepKeys:
+          keep_keys:
+            - image
+            - label_ctc
+            - label_gtc
+            - length
+            - valid_ratio
+            - image_hr
+  loader:
+    shuffle: false
+    drop_last: false
+    batch_size_per_card: 32
+    num_workers: 4

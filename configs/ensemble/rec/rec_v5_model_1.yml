@@ -1,0 +1,158 @@
+Global:
+  use_gpu: true
+  epoch_num: 50
+  log_smooth_window: 20
+  print_batch_step: 10
+  save_model_dir: /home/temp-user/workspace/plate-recognition-low-resolution/output/ensemble_v5/rec_20260228_1636/model_1
+  save_epoch_step: 9999999
+  eval_batch_step: [0, 1000]
+  cal_metric_during_train: true
+  pretrained_model: /home/temp-user/workspace/plate-recognition-low-resolution/weights/pretrained/ocr/paddleocr_v5_rec/PP-OCRv5_server_rec_pretrained
+  checkpoints: null
+  save_inference_dir: null
+  use_visualdl: false
+  use_amp: true
+  amp_level: O1
+  scale_loss: 1024.0
+  use_dynamic_loss_scaling: true
+  infer_img: null
+  character_dict_path: /home/temp-user/workspace/plate-recognition-low-resolution/data/dict/plate_dict.txt
+  max_text_length: &max_text_length 10 # NRTRLabelEncode	<sos>, <eos>, <pad>	max_text_length ≥ max_label_length + 3
+  infer_mode: false
+  use_space_char: false
+  save_res_path: ./output/rec/predicts.txt
+
+Architecture:
+  model_type: rec
+  algorithm: SVTR_HGNet
+  Transform:
+    name: TPS
+    num_fiducial: 20
+    loc_lr: 0.1
+    model_name: small
+  Backbone:
+    name: PPHGNetV2_B4
+    frozen_stages: 2
+    use_temporal: true
+  Head:
+    name: MultiHead
+    head_list:
+      - CTCHead:
+          Neck:
+            name: svtr
+            dims: 120
+            depth: 2
+            hidden_dims: 120
+            kernel_size: [1, 3]
+            use_guide: true
+          Head:
+            fc_decay: 0.00001
+      - NRTRHead:
+          nrtr_dim: 384
+          max_text_length: *max_text_length
+
+Loss:
+  name: MultiLoss
+  loss_config_list:
+    - CTCLoss:
+    - NRTRLoss:
+
+Optimizer:
+  name: Adam
+  beta1: 0.9
+  beta2: 0.999
+  lr:
+    name: Cosine
+    learning_rate: 0.001
+    warmup_epoch: 2
+  regularizer:
+    name: L2
+    factor: 0.00001
+
+PostProcess:
+  name: CTCLabelDecode
+
+Metric:
+  name: RecMetric
+  main_indicator: acc
+
+Train:
+  dataset:
+    # --- New Config: MultiScale Training ---
+    name: MultiScaleDataSet
+    ds_width: false
+    data_dir: /home/temp-user/workspace/plate-recognition-low-resolution/data/models/paddleocr/rec_data/model_1
+    label_file_list:
+      - /home/temp-user/workspace/plate-recognition-low-resolution/data/models/paddleocr/rec_data/model_1/train.txt
+    ext_op_transform_idx: 1
+    transforms:
+      - DecodeMultiImage:
+          img_mode: BGR
+          channel_first: false
+      - MultiLabelEncode:
+          gtc_encode: NRTRLabelEncode
+      - KeepKeys:
+          keep_keys:
+            - image
+            - label_ctc
+            - label_gtc
+            - length
+            - valid_ratio
+    # --- Old Config: SimpleDataSet ---
+    # name: SimpleDataSet
+    # data_dir: /home/temp-user/workspace/plate-recognition-low-resolution/data/models/paddleocr/rec_data/model_1
+    # label_file_list:
+    #   - /home/temp-user/workspace/plate-recognition-low-resolution/data/models/paddleocr/rec_data/model_1/train.txt
+    # transforms:
+    #   - DecodeMultiImage:
+    #       img_mode: BGR
+    #       channel_first: false
+    #   - MultiLabelEncode:
+    #       gtc_encode: NRTRLabelEncode
+    #   - KeepKeys:
+    #       keep_keys:
+    #         - image
+    #         - label_ctc
+    #         - label_gtc
+    #         - length
+    #         - valid_ratio
+
+  sampler:
+    name: MultiScaleSampler
+    scales: [[320, 32], [320, 48]]
+    first_bs: &bs 32
+    fix_bs: false
+    divided_factor: [8, 16] # w, h
+    is_training: true
+  loader:
+    shuffle: true
+    batch_size_per_card: *bs
+    drop_last: true
+    num_workers: 4
+
+Eval:
+  dataset:
+    name: SimpleDataSet
+    data_dir: /home/temp-user/workspace/plate-recognition-low-resolution/data/models/paddleocr/rec_data/model_1
+    label_file_list:
+      - /home/temp-user/workspace/plate-recognition-low-resolution/data/models/paddleocr/rec_data/model_1/val.txt
+    transforms:
+      - DecodeMultiImage:
+          img_mode: BGR
+          channel_first: false
+      - MultiLabelEncode:
+          gtc_encode: NRTRLabelEncode
+      - RecResizeImg:
+          image_shape: [3, 48, 320]
+      - KeepKeys:
+          keep_keys:
+            - image
+            - label_ctc
+            - label_gtc
+            - length
+            - valid_ratio
+  loader:
+    shuffle: false
+    drop_last: false
+    batch_size_per_card: 32
+    num_workers: 4
